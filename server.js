@@ -2,6 +2,7 @@
 const express = require('express')
 const { graphqlHTTP } = require('express-graphql')
 const { buildSchema } = require('graphql')
+
 const fetch = require('node-fetch')
 require('dotenv').config()
 
@@ -9,29 +10,71 @@ const apikey = process.env.OPENWEATHERMAP_API_KEY
 
 
 const schema = buildSchema(`
+type Test {
+	message: String!
+}
 
 type Weather {
     temperature: Float!
     description: String!
+    feels_like: Float
+    temp_min: Float
+    temp_max: Float
+    pressure: Int
+    humidity: Int
+    cod: String
+    message: String
+}
+
+enum Units {
+    standard
+    metric
+    imperial
 }
 
 type Query {
-    getWeather(zip: Int!): Weather!
+  getWeather(zip: Int!, units: Units): Weather!
+  doTest: Test
 }
 
 `)
 
 const root = {
-    getWeather: async ({ zip }) => {
+  doTest: () => {
+    return { message: "Test completed successfully!"}
+  },
+  getWeather: async ({ zip, units = 'imperial'  }) => {
           const apikey = process.env.OPENWEATHERMAP_API_KEY
-          const url = `https://api.openweathermap.org/data/2.5/weather?zip=${zip}&appid=${apikey}`
+          const url = `https://api.openweathermap.org/data/2.5/weather?zip=${zip}&appid=${apikey}&units=${units}`
           const res = await fetch(url)
           const json = await res.json()
+          const cod = parseInt(json.cod)
+          const message = json.message
+          if (cod !== 200) {
+            return { cod, message }
+          }
           const temperature = json.main.temp
           const description = json.weather[0].description
-          return { temperature, description }
+          const feels_like = json.main.feels_like
+          const temp_min = json.main.temp_min
+          const temp_max = json.main.temp_max
+          const pressure = json.main.pressure
+          const humidity = json.main.humidity
+
+          return {
+            temperature,
+            description,
+            feels_like,
+            temp_min,
+            temp_max,
+            pressure,
+            humidity,
+            cod,
+            message
       }
   }
+
+}
   
 
 const app = express()
